@@ -1,0 +1,125 @@
+{
+  "info": {
+    "name": "Link Shortening API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "short_id",
+      "value": "abc12345",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Shorten URL",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/shorten",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"url\": \"https://example.com/some/very/long/url\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "description": "Создаёт короткую ссылку.\n\nПринимает:\n- url (string, HttpUrl) — оригинальный URL\n\nВозвращает 201:\n- short_id (string) — короткий идентификатор\n- short_url (string) — полная короткая ссылка\n- original_url (string) — оригинальный URL"
+      },
+      "response": [
+        {
+          "name": "201 Created",
+          "status": "Created",
+          "code": 201,
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"short_id\": \"abc12345\",\n  \"short_url\": \"http://localhost:8000/abc12345\",\n  \"original_url\": \"https://example.com/some/very/long/url\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Redirect to Original",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/{{short_id}}",
+        "description": "Перенаправляет на оригинальный URL и увеличивает счётчик переходов.\n\nВозвращает 302 redirect.\nВозвращает 404, если short_id не найден."
+      },
+      "response": [
+        {
+          "name": "302 Redirect",
+          "status": "Found",
+          "code": 302,
+          "header": [
+            {
+              "key": "Location",
+              "value": "https://example.com/some/very/long/url"
+            }
+          ],
+          "body": ""
+        },
+        {
+          "name": "404 Not Found",
+          "status": "Not Found",
+          "code": 404,
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"detail\": \"Link not found\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Get Stats",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/stats/{{short_id}}",
+        "description": "Возвращает статистику по короткой ссылке.\n\nВозвращает 200:\n- short_id (string)\n- original_url (string)\n- clicks (int) — количество переходов\n- created_at (datetime ISO 8601)\n\nВозвращает 404, если short_id не найден."
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "status": "OK",
+          "code": 200,
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"short_id\": \"abc12345\",\n  \"original_url\": \"https://example.com/some/very/long/url\",\n  \"clicks\": 42,\n  \"created_at\": \"2026-03-20T12:00:00\"\n}"
+        },
+        {
+          "name": "404 Not Found",
+          "status": "Not Found",
+          "code": 404,
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"detail\": \"Link not found\"\n}"
+        }
+      ]
+    }
+  ]
+}

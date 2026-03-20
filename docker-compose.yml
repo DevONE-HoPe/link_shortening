@@ -1,0 +1,98 @@
+services:
+  backend:
+    build: .
+    image: backend:latest
+    container_name: ${COMPOSE_PROJECT_NAME}-backend
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - ${APP_PORT}:8000
+    networks:
+      - app
+    depends_on:
+      - pgbouncer
+
+
+  postgres:
+    image: postgres:14-alpine
+    container_name: ${COMPOSE_PROJECT_NAME}-postgres
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASS}
+      - POSTGRES_DB=${DB_NAME}
+      - PGDATA='/var/lib/postgresql/data/pgdata'
+    networks:
+      - app
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  pgbouncer:
+    image: edoburu/pgbouncer
+    container_name: ${COMPOSE_PROJECT_NAME}-pgbouncer
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASS}
+      - DB_HOST=postgres
+      - POOL_MODE=transaction
+      - MAX_DB_CONNECTIONS=0
+      - DEFAULT_POOL_SIZE=40
+      - ADMIN_USERS=postgres,${DB_USER}
+      - AUTH_TYPE=scram-sha-256
+    ports:
+      - ${DB_PORT}:${DB_PORT}
+    depends_on:
+      - postgres
+    networks:
+      - app
+
+
+  pgbackup:
+    container_name: ${COMPOSE_PROJECT_NAME}-pgbackup
+    image: prodrigestivill/postgres-backup-local
+    restart: always
+    volumes:
+      - backups-data:/backups
+    networks:
+      - app
+    depends_on:
+      - postgres
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASS}
+      - POSTGRES_EXTRA_OPTS=-Z9 --schema=public --blobs
+      - SCHEDULE=@every 0h30m00s
+      - BACKUP_KEEP_DAYS=7
+      - BACKUP_KEEP_WEEKS=4
+      - BACKUP_KEEP_MONTHS=6
+      - HEALTHCHECK_PORT=81
+
+  migrator:
+    image: backend:latest
+    container_name: ${COMPOSE_PROJECT_NAME}-migrator
+    restart: "no"
+    command: alembic upgrade head
+    env_file:
+      - .env
+    networks:
+      - app
+    depends_on:
+      - pgbouncer
+    volumes:
+      - ./migrations:/usr/src/app/migrations
+
+networks:
+  app:
+    driver: bridge
+
+volumes:
+  backups-data: {}
+  postgres-data: {}
